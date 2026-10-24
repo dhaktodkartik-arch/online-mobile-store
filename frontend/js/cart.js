@@ -119,27 +119,21 @@ function showToast(message) {
 async function checkBackendStatus() {
   const dot = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
-  if (!dot || !text) return;
-
-  // On GitHub Pages / static host, do not ping localhost to prevent Chrome PNA security warnings
-  if (!isLocalhost || !API_URL) {
-    dot.style.backgroundColor = '#3b82f6'; // Clean blue
-    text.textContent = 'GitHub Pages Demo Mode • Run locally for MySQL';
-    return;
-  }
+  if (!dot || !text || !API_URL) return;
 
   try {
     const res = await fetch(`${API_URL}/health`);
     if (res.ok) {
+      const data = await res.json();
       dot.style.backgroundColor = '#10b981'; // Green
-      text.textContent = 'Backend Online (Port 5000)';
+      text.textContent = isLocalhost ? 'Backend Online (Port 5000)' : 'Cloud Backend Online (Render)';
     } else {
       dot.style.backgroundColor = '#f59e0b';
-      text.textContent = 'Backend Error';
+      text.textContent = 'Backend Responding';
     }
   } catch (err) {
-    dot.style.backgroundColor = '#ef4444'; // Red
-    text.textContent = 'Backend Offline';
+    dot.style.backgroundColor = '#3b82f6'; // Clean blue
+    text.textContent = isLocalhost ? 'Backend Offline (Start node server.js)' : 'Demo Mode (Render waking up)';
   }
 }
 

@@ -9,9 +9,10 @@ const DB_USER = process.env.MYSQLUSER || process.env.DB_USER || 'root';
 const DB_PASSWORD = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
 const DB_NAME = process.env.MYSQLDATABASE || process.env.DB_NAME || 'mobile_store';
 const DB_PORT = parseInt(process.env.MYSQLPORT || process.env.DB_PORT, 10) || 3306;
+const DB_SSL = process.env.DB_SSL === 'true' || DB_PORT === 4000;
 
 // Create connection pool
-const pool = mysql.createPool({
+const poolConfig = {
   host: DB_HOST,
   user: DB_USER,
   password: DB_PASSWORD,
@@ -20,7 +21,13 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-});
+};
+
+if (DB_SSL) {
+  poolConfig.ssl = { rejectUnauthorized: false };
+}
+
+const pool = mysql.createPool(poolConfig);
 
 // Initialize database and tables
 async function initDB() {

@@ -6,9 +6,10 @@ const isLocalhost = window.location.hostname === 'localhost' ||
                     window.location.hostname === '127.0.0.1' || 
                     window.location.protocol === 'file:';
 
-// When on localhost, connect to the Node.js + MySQL backend on port 5000
-// When on GitHub Pages, do NOT call http://localhost:5000 (prevents browser Mixed Content & Private Network Access popups)
-const API_URL = isLocalhost ? "http://localhost:5000/api" : "";
+// When on localhost, connect to local backend (port 5000)
+// When on GitHub Pages, connect to the live Render backend service
+const RENDER_API_URL = "https://online-mobile-store-x4s1.onrender.com/api";
+const API_URL = isLocalhost ? "http://localhost:5000/api" : RENDER_API_URL;
 
 // Built-in phones catalog (Used seamlessly on GitHub Pages or as offline fallback)
 const DEMO_PRODUCTS = [
