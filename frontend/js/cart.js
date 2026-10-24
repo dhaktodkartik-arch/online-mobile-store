@@ -119,7 +119,14 @@ function showToast(message) {
 async function checkBackendStatus() {
   const dot = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
-  if (!dot || !text || typeof API_URL === 'undefined') return;
+  if (!dot || !text) return;
+
+  // On GitHub Pages / static host, do not ping localhost to prevent Chrome PNA security warnings
+  if (!isLocalhost || !API_URL) {
+    dot.style.backgroundColor = '#3b82f6'; // Clean blue
+    text.textContent = 'GitHub Pages Demo Mode • Run locally for MySQL';
+    return;
+  }
 
   try {
     const res = await fetch(`${API_URL}/health`);

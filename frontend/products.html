@@ -89,18 +89,7 @@
       grid.innerHTML = '<div class="loading-box">Searching products...</div>';
 
       try {
-        const params = new URLSearchParams();
-        if (search.trim()) params.append('search', search.trim());
-        if (brand.trim()) params.append('brand', brand.trim());
-
-        const queryStr = params.toString() ? `?${params.toString()}` : '';
-        const response = await fetch(`${API_URL}/products${queryStr}`);
-        
-        if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
-        }
-
-        const products = await response.json();
+        const products = await getProducts(search, brand);
 
         if (countEl) {
           countEl.textContent = `Showing ${products.length} product(s)`;
@@ -147,10 +136,7 @@
         console.error('Error fetching products:', error);
         grid.innerHTML = `
           <div class="empty-box">
-            <p>Could not connect to backend at <code>${API_URL}</code>.</p>
-            <p style="font-size: 0.85rem; margin-top: 0.5rem; color: #64748b;">
-              Ensure your backend is running: <code>npm run dev</code> inside <code>backend/</code>.
-            </p>
+            <p>Could not load products at this moment.</p>
           </div>
         `;
       }

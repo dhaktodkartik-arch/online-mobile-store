@@ -94,12 +94,7 @@
       }
 
       try {
-        const response = await fetch(`${API_URL}/products/${productId}`);
-        if (!response.ok) {
-          throw new Error(response.status === 404 ? 'Phone not found' : `Error ${response.status}`);
-        }
-
-        currentProduct = await response.json();
+        currentProduct = await getProductById(productId);
         document.title = `${currentProduct.name} - MobileHub`;
 
         container.innerHTML = `
