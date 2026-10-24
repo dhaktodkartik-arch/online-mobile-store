@@ -4,11 +4,11 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_USER = process.env.DB_USER || 'root';
-const DB_PASSWORD = process.env.DB_PASSWORD || '';
-const DB_NAME = process.env.DB_NAME || 'mobile_store';
-const DB_PORT = parseInt(process.env.DB_PORT, 10) || 3306;
+const DB_HOST = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+const DB_USER = process.env.MYSQLUSER || process.env.DB_USER || 'root';
+const DB_PASSWORD = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.MYSQLDATABASE || process.env.DB_NAME || 'mobile_store';
+const DB_PORT = parseInt(process.env.MYSQLPORT || process.env.DB_PORT, 10) || 3306;
 
 // Create connection pool
 const pool = mysql.createPool({
@@ -25,16 +25,19 @@ const pool = mysql.createPool({
 // Initialize database and tables
 async function initDB() {
   try {
-    // 1. Create database if it does not already exist
-    const tempConnection = await mysql.createConnection({
-      host: DB_HOST,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      port: DB_PORT
-    });
-
-    await tempConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
-    await tempConnection.end();
+    // 1. Attempt to create database if on local instance (ignored safely on cloud DBs like Railway)
+    try {
+      const tempConnection = await mysql.createConnection({
+        host: DB_HOST,
+        user: DB_USER,
+        password: DB_PASSWORD,
+        port: DB_PORT
+      });
+      await tempConnection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
+      await tempConnection.end();
+    } catch (e) {
+      // In cloud providers like Railway, database is already created
+    }
 
     // 2. Create tables using the connection pool
     await pool.query(`
