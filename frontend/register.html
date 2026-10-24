@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html" class="active">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Register Form Container -->
+  <main class="container">
+    <div class="auth-container">
+      <div class="auth-card">
+        <h2>Create an Account</h2>
+        <p class="auth-subtitle">Join MobileHub to order smartphones online</p>
+
+        <!-- Message feedback banner -->
+        <div id="auth-alert" class="alert-message"></div>
+
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <!-- Name -->
+          <div class="form-group">
+            <label for="name" class="form-label">Full Name</label>
+            <input 
+              type="text" 
+              id="name" 
+              class="form-input" 
+              placeholder="e.g. Rahul Sharma" 
+              required
+            >
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email" class="form-label">Email Address</label>
+            <input 
+              type="email" 
+              id="email" 
+              class="form-input" 
+              placeholder="name@example.com" 
+              required
+            >
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              class="form-input" 
+              placeholder="At least 6 characters" 
+              minlength="6"
+              required
+            >
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="form-group">
+            <label for="confirm-password" class="form-label">Confirm Password</label>
+            <input 
+              type="password" 
+              id="confirm-password" 
+              class="form-input" 
+              placeholder="Repeat your password" 
+              required
+            >
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn-auth">Register</button>
+        </form>
+
+        <p class="auth-switch">
+          Already have an account? <a href="login.html">Login here</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Handle registration form submit
+    async function handleRegister(event) {
+      event.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      const alertBox = document.getElementById('auth-alert');
+      const submitBtn = document.getElementById('submit-btn');
+
+      // Reset alert
+      alertBox.className = 'alert-message';
+      alertBox.textContent = '';
+
+      // Validate matching passwords
+      if (password !== confirmPassword) {
+        alertBox.className = 'alert-message error';
+        alertBox.textContent = 'Passwords do not match. Please re-enter.';
+        return;
+      }
+
+      if (password.length < 6) {
+        alertBox.className = 'alert-message error';
+        alertBox.textContent = 'Password must be at least 6 characters long.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+
+      try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Registration failed.');
+        }
+
+        // Show success
+        alertBox.className = 'alert-message success';
+        alertBox.textContent = 'Account created successfully! Redirecting to login...';
+
+        // Redirect to login after 1.5 seconds
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 1500);
+
+      } catch (error) {
+        alertBox.className = 'alert-message error';
+        alertBox.textContent = error.message || 'Could not connect to server.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Register';
+      }
+    }
+  </script>
+</body>
+</html>

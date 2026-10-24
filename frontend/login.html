@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html" class="active">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Login Form Container -->
+  <main class="container">
+    <div class="auth-container">
+      <div class="auth-card">
+        <h2>Welcome Back</h2>
+        <p class="auth-subtitle">Login to your MobileHub account</p>
+
+        <!-- Message feedback banner -->
+        <div id="auth-alert" class="alert-message"></div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email" class="form-label">Email Address</label>
+            <input 
+              type="email" 
+              id="email" 
+              class="form-input" 
+              placeholder="name@example.com" 
+              required
+            >
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              class="form-input" 
+              placeholder="Enter your password" 
+              required
+            >
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn-auth">Login</button>
+        </form>
+
+        <p class="auth-switch">
+          Don't have an account? <a href="register.html">Register here</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Handle login form submit
+    async function handleLogin(event) {
+      event.preventDefault();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const alertBox = document.getElementById('auth-alert');
+      const submitBtn = document.getElementById('submit-btn');
+
+      // Reset alert
+      alertBox.className = 'alert-message';
+      alertBox.textContent = '';
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+
+      try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Invalid email or password.');
+        }
+
+        // Save token & user in localStorage
+        saveAuth(data.token, data.user);
+
+        // Show success alert
+        alertBox.className = 'alert-message success';
+        alertBox.textContent = `Welcome back, ${data.user.name}! Redirecting...`;
+
+        // Redirect after 1 second
+        setTimeout(() => {
+          const cart = getCart();
+          if (cart.length > 0) {
+            window.location.href = 'cart.html';
+          } else {
+            window.location.href = 'products.html';
+          }
+        }, 1000);
+
+      } catch (error) {
+        alertBox.className = 'alert-message error';
+        alertBox.textContent = error.message || 'Login failed. Please try again.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
+      }
+    }
+  </script>
+</body>
+</html>

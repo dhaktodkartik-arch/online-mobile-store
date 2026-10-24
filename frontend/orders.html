@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Orders Main Container -->
+  <main class="container">
+    <div class="section-header">
+      <h2>My Past Orders</h2>
+      <a href="products.html" class="view-all">Browse More Phones &rarr;</a>
+    </div>
+
+    <div id="orders-container">
+      <div class="loading-box">Loading your orders...</div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Fetch and display user's past orders
+    async function loadMyOrders() {
+      // Auth Guard
+      if (!isLoggedIn()) {
+        alert('Please login to view your orders.');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const container = document.getElementById('orders-container');
+
+      try {
+        const response = await fetch(`${API_URL}/orders/my`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            logout();
+            return;
+          }
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        const orders = await response.json();
+
+        if (!orders || orders.length === 0) {
+          container.innerHTML = `
+            <div class="empty-cart-container">
+              <div class="empty-icon">📦</div>
+              <h3>No Orders Placed Yet</h3>
+              <p>You haven't placed any orders yet. Discover our collection of latest smartphones!</p>
+              <a href="products.html" class="btn-hero" style="display:inline-block;">Explore Phones</a>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="orders-list">
+            ${orders.map(order => {
+              // Format date
+              const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : 'Recent';
+
+              return `
+                <div class="order-card">
+                  <!-- Order Header -->
+                  <div class="order-card-header">
+                    <div class="order-header-left">
+                      <span class="order-id-title">Order #${order.id}</span>
+                      <span class="order-date">📅 ${orderDate}</span>
+                      <span class="order-status-badge">${order.status || 'Placed'}</span>
+                    </div>
+                    <div class="order-total-badge">
+                      Total: ${formatPrice(order.total)}
+                    </div>
+                  </div>
+
+                  <!-- Order Body -->
+                  <div class="order-card-body">
+                    <!-- Delivery Address -->
+                    <div class="order-address-box">
+                      <strong>📍 Delivery Address:</strong> ${order.address || 'Address provided at checkout'}
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="order-items-grid">
+                      ${(order.items || []).map(item => `
+                        <div class="order-item-row">
+                          <div class="order-item-detail">
+                            <img src="${item.product_image || 'https://placehold.co/100x100?text=Phone'}" alt="${item.product_name}">
+                            <div>
+                              <div class="order-item-name">${item.product_name}</div>
+                              <div class="order-item-meta">${item.product_brand || ''} &bull; Qty: ${item.quantity} &times; ${formatPrice(item.price)}</div>
+                            </div>
+                          </div>
+                          <div class="order-item-subtotal">
+                            ${formatPrice(item.price * item.quantity)}
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Failed to load orders:', error);
+        container.innerHTML = `
+          <div class="empty-box">
+            <h3>Unable to load orders</h3>
+            <p style="margin-top: 0.5rem; color: #64748b;">${error.message || 'Please verify server connection.'}</p>
+            <p style="margin-top: 1rem;"><a href="index.html" class="btn-filter" style="display:inline-block; text-decoration:none;">Go to Homepage</a></p>
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadMyOrders);
+  </script>
+</body>
+</html>

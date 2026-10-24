@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Checkout Main Container -->
+  <main class="container">
+    <div class="section-header">
+      <h2>Checkout & Delivery</h2>
+      <a href="cart.html" class="view-all">&larr; Back to Cart</a>
+    </div>
+
+    <div id="checkout-container">
+      <!-- Injected by JavaScript -->
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Ensure only logged-in users can access checkout
+    function checkAuthAndRender() {
+      if (!isLoggedIn()) {
+        alert('Please login to access checkout.');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const cart = getCart();
+      const container = document.getElementById('checkout-container');
+
+      // If cart is empty, redirect or prompt
+      if (!cart || cart.length === 0) {
+        container.innerHTML = `
+          <div class="empty-cart-container">
+            <div class="empty-icon">🛒</div>
+            <h3>Your Cart is Empty</h3>
+            <p>You need items in your cart before you can checkout.</p>
+            <a href="products.html" class="btn-hero" style="display:inline-block;">Browse Phones Catalog</a>
+          </div>
+        `;
+        return;
+      }
+
+      const user = getCurrentUser();
+      const total = getCartTotal();
+
+      container.innerHTML = `
+        <div id="checkout-form-view" class="checkout-layout">
+          <!-- Left Column: Shipping & Payment -->
+          <div class="checkout-card">
+            <h3>1. Delivery Address</h3>
+            
+            <div id="checkout-error" class="alert-message error" style="display: none; margin-bottom: 1rem;"></div>
+
+            <div class="form-group">
+              <label class="form-label">Customer Name</label>
+              <input type="text" class="form-input" value="${user.name}" readonly style="background-color: #f8fafc; color: #64748b;">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" class="form-input" value="${user.email}" readonly style="background-color: #f8fafc; color: #64748b;">
+            </div>
+
+            <div class="form-group">
+              <label for="delivery-address" class="form-label">Street Address / House No. / Landmark *</label>
+              <textarea 
+                id="delivery-address" 
+                class="form-textarea" 
+                placeholder="Enter complete delivery address with PIN code..." 
+                required
+              ></textarea>
+            </div>
+
+            <h3 style="margin-top: 2rem;">2. Payment Method</h3>
+            <div class="payment-method-box">
+              <input type="radio" id="cod" name="payment" value="COD" checked>
+              <label for="cod" style="cursor: pointer;">
+                <strong>💵 Cash on Delivery (COD)</strong>
+                <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.2rem;">
+                  Pay in cash or UPI directly when your phone arrives at your doorstep.
+                </p>
+              </label>
+            </div>
+
+            <button id="btn-submit-order" class="btn-place-order" onclick="handlePlaceOrder()">
+              ✓ Place Order (Cash on Delivery)
+            </button>
+          </div>
+
+          <!-- Right Column: Order Summary -->
+          <div class="checkout-card">
+            <h3>Order Summary (${getCartItemCount()} items)</h3>
+            <div class="order-items-grid">
+              ${cart.map(item => `
+                <div class="order-item-row">
+                  <div class="order-item-detail">
+                    <img src="${item.image}" alt="${item.name}">
+                    <div>
+                      <div class="order-item-name">${item.name}</div>
+                      <div class="order-item-meta">Qty: ${item.quantity} &times; ${formatPrice(item.price)}</div>
+                    </div>
+                  </div>
+                  <div class="order-item-subtotal">
+                    ${formatPrice(item.price * item.quantity)}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div style="margin-top: 1.5rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+              <div class="summary-row">
+                <span>Items Subtotal:</span>
+                <span>${formatPrice(total)}</span>
+              </div>
+              <div class="summary-row">
+                <span>Shipping:</span>
+                <span style="color: #16a34a; font-weight: 600;">FREE</span>
+              </div>
+              <div class="summary-row total-row">
+                <span>Grand Total:</span>
+                <span>${formatPrice(total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Submit order to POST /api/orders
+    async function handlePlaceOrder() {
+      const addressInput = document.getElementById('delivery-address');
+      const errorBox = document.getElementById('checkout-error');
+      const submitBtn = document.getElementById('btn-submit-order');
+      const cart = getCart();
+
+      if (!addressInput || !addressInput.value.trim()) {
+        errorBox.textContent = 'Please enter your complete delivery address.';
+        errorBox.style.display = 'block';
+        if (addressInput) addressInput.focus();
+        return;
+      }
+
+      errorBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing your order...';
+
+      // Prepare payload
+      const orderPayload = {
+        address: addressInput.value.trim(),
+        items: cart.map(item => ({
+          productId: item.id,
+          quantity: item.quantity
+        }))
+      };
+
+      try {
+        const response = await fetch(`${API_URL}/orders`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify(orderPayload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to place order.');
+        }
+
+        // Clear cart in localStorage
+        clearCart();
+
+        // Show Order Confirmation View
+        const container = document.getElementById('checkout-container');
+        container.innerHTML = `
+          <div class="order-success-card">
+            <div class="success-check-icon">✓</div>
+            <h2>Order Placed Successfully!</h2>
+            <p style="color: #475569;">Thank you for shopping with MobileHub. Your smartphone is on its way!</p>
+
+            <div class="order-success-details">
+              <div><strong>Order Number:</strong> #${data.orderId}</div>
+              <div style="margin-top: 0.4rem;"><strong>Total Amount:</strong> ${formatPrice(data.total)}</div>
+              <div style="margin-top: 0.4rem;"><strong>Payment Method:</strong> Cash on Delivery</div>
+              <div style="margin-top: 0.4rem;"><strong>Delivery To:</strong> ${orderPayload.address}</div>
+              <div style="margin-top: 0.4rem;"><strong>Status:</strong> <span class="order-status-badge">Placed</span></div>
+            </div>
+
+            <div class="order-success-actions">
+              <a href="orders.html" class="btn-hero" style="background-color: #2563eb; color: #ffffff;">View My Orders</a>
+              <a href="products.html" class="btn-reset" style="padding: 0.7rem 1.4rem; text-decoration: none; font-weight: 600;">Continue Shopping</a>
+            </div>
+          </div>
+        `;
+
+      } catch (err) {
+        console.error('Order error:', err);
+        errorBox.textContent = err.message || 'Error communicating with server.';
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✓ Place Order (Cash on Delivery)';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', checkAuthAndRender);
+  </script>
+</body>
+</html>

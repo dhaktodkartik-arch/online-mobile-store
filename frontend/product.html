@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Product Details Container -->
+  <main class="container">
+    <a href="products.html" class="back-btn">&larr; Back to All Phones</a>
+
+    <div id="product-detail-area">
+      <div class="loading-box">Loading phone details from database...</div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let currentProduct = null;
+    let selectedQuantity = 1;
+
+    // Get product ID from query parameter (?id=1)
+    function getProductIdFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('id');
+    }
+
+    // Change quantity in selector
+    function changeQty(delta) {
+      if (!currentProduct) return;
+      const newQty = selectedQuantity + delta;
+      if (newQty >= 1 && newQty <= currentProduct.stock) {
+        selectedQuantity = newQty;
+        document.getElementById('detail-qty-input').value = selectedQuantity;
+      } else if (newQty > currentProduct.stock) {
+        alert(`Only ${currentProduct.stock} units available in stock!`);
+      }
+    }
+
+    // Add currently viewed product to cart
+    function handleAddToCart() {
+      if (!currentProduct) return;
+      addToCart(currentProduct, selectedQuantity);
+    }
+
+    // Fetch single product from API
+    async function loadProductDetails() {
+      const productId = getProductIdFromUrl();
+      const container = document.getElementById('product-detail-area');
+
+      if (!productId) {
+        container.innerHTML = `
+          <div class="empty-box">
+            <h3>No Phone Selected</h3>
+            <p style="margin-top: 0.5rem;"><a href="products.html" class="btn-filter" style="display:inline-block; text-decoration:none;">Browse Phones Catalog</a></p>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/products/${productId}`);
+        if (!response.ok) {
+          throw new Error(response.status === 404 ? 'Phone not found' : `Error ${response.status}`);
+        }
+
+        currentProduct = await response.json();
+        document.title = `${currentProduct.name} - MobileHub`;
+
+        container.innerHTML = `
+          <div class="product-detail-card">
+            <!-- Product Image -->
+            <div class="product-detail-gallery">
+              <img src="${currentProduct.image}" alt="${currentProduct.name}">
+            </div>
+
+            <!-- Product Info & Actions -->
+            <div class="product-detail-info">
+              <span class="product-brand">${currentProduct.brand}</span>
+              <h2>${currentProduct.name}</h2>
+              <div class="product-detail-price">${formatPrice(currentProduct.price)}</div>
+
+              <p class="product-detail-desc">
+                ${currentProduct.description || 'High-performance smartphone with original manufacturer warranty and accessories.'}
+              </p>
+
+              <!-- Specifications Grid -->
+              <div class="specs-grid">
+                <div class="spec-box">
+                  <div class="spec-label">RAM</div>
+                  <div class="spec-value">${currentProduct.ram || '8GB'}</div>
+                </div>
+                <div class="spec-box">
+                  <div class="spec-label">Storage</div>
+                  <div class="spec-value">${currentProduct.storage || '128GB'}</div>
+                </div>
+                <div class="spec-box">
+                  <div class="spec-label">Brand</div>
+                  <div class="spec-value">${currentProduct.brand}</div>
+                </div>
+                <div class="spec-box">
+                  <div class="spec-label">Availability</div>
+                  <div class="spec-value" style="color: ${currentProduct.stock > 0 ? '#16a34a' : '#dc2626'};">
+                    ${currentProduct.stock > 0 ? `In Stock (${currentProduct.stock})` : 'Out of Stock'}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quantity & Add to Cart -->
+              <div class="purchase-row">
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" onclick="changeQty(-1)">-</button>
+                  <input type="text" id="detail-qty-input" class="qty-input" value="1" readonly>
+                  <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
+                <button 
+                  class="btn-add-cart-large" 
+                  onclick="handleAddToCart()"
+                  ${currentProduct.stock <= 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+                >
+                  🛒 Add to Cart
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Failed to load product details:', error);
+        container.innerHTML = `
+          <div class="empty-box">
+            <h3>Unable to load phone details</h3>
+            <p style="margin-top: 0.5rem; color: #64748b;">${error.message || 'Please check backend connection.'}</p>
+            <p style="margin-top: 1rem;"><a href="products.html" class="btn-filter" style="display:inline-block; text-decoration:none;">Back to Phones</a></p>
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProductDetails);
+  </script>
+</body>
+</html>

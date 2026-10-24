@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MobileHub - Online Mobile Store</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Hero Banner -->
+  <section class="hero">
+    <h2>Upgrade Your Smartphone Today</h2>
+    <p>Explore the latest smartphones from Apple, Samsung, OnePlus, Xiaomi, and more at the best prices.</p>
+    <a href="products.html" class="btn-hero">Browse All Phones</a>
+  </section>
+
+  <!-- Highlight Badges -->
+  <div class="features-bar">
+    <div class="feature-item">
+      <span>🚚</span>
+      <p>Free Express Delivery</p>
+    </div>
+    <div class="feature-item">
+      <span>🛡️</span>
+      <p>1 Year Brand Warranty</p>
+    </div>
+    <div class="feature-item">
+      <span>🔄</span>
+      <p>7 Days Easy Replacement</p>
+    </div>
+    <div class="feature-item">
+      <span>💳</span>
+      <p>Secure Payments & COD</p>
+    </div>
+  </div>
+
+  <!-- Featured Phones Section -->
+  <main class="container">
+    <div class="section-header">
+      <h2>Featured Phones</h2>
+      <a href="products.html" class="view-all">View All Phones &rarr;</a>
+    </div>
+
+    <!-- Product Grid filled dynamically from API -->
+    <div id="featured-products-grid" class="product-grid">
+      <div class="loading-box">Loading featured phones from database...</div>
+    </div>
+  </main>
+
+  <!-- Footer with clean status check -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Fetch and display 6 featured products on page load
+    async function loadFeaturedProducts() {
+      const grid = document.getElementById('featured-products-grid');
+
+      try {
+        const response = await fetch(`${API_URL}/products`);
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+        const products = await response.json();
+
+        if (!products || products.length === 0) {
+          grid.innerHTML = '<div class="empty-box">No products found in the database.</div>';
+          return;
+        }
+
+        // Show first 6 products as featured
+        const featured = products.slice(0, 6);
+
+        grid.innerHTML = featured.map(phone => `
+          <div class="product-card">
+            <div class="product-card-img">
+              <a href="product.html?id=${phone.id}">
+                <img src="${phone.image}" alt="${phone.name}" loading="lazy">
+              </a>
+            </div>
+            <div class="product-card-body">
+              <span class="product-brand">${phone.brand}</span>
+              <h3 class="product-title">
+                <a href="product.html?id=${phone.id}" style="color: inherit; text-decoration: none;">
+                  ${phone.name}
+                </a>
+              </h3>
+              <p class="product-specs">${phone.ram || '8GB'} RAM | ${phone.storage || '128GB'} Storage</p>
+              <div class="product-price-row">
+                <span class="product-price">${formatPrice(phone.price)}</span>
+                <span class="product-stock">${phone.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
+              </div>
+              <div class="product-actions">
+                <a href="product.html?id=${phone.id}" class="btn-details" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">View Details</a>
+                <button class="btn-cart" onclick='addToCart(${JSON.stringify(phone)})'>Add to Cart</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        console.error('Failed to load featured products:', error);
+        grid.innerHTML = `
+          <div class="empty-box">
+            <p>Could not connect to backend at <code>${API_URL}</code>.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; color: #64748b;">
+              Make sure the backend server is running with <code>npm run dev</code> inside <code>backend/</code>.
+            </p>
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadFeaturedProducts);
+  </script>
+</body>
+</html>

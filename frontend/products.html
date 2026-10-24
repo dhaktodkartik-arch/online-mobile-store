@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Mobile Phones - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html" class="active">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Products Main Content -->
+  <main class="container">
+    <div class="section-header">
+      <div>
+        <h2>All Mobile Phones</h2>
+        <p style="color: #64748b; font-size: 0.95rem;">Browse and filter genuine smartphones with manufacturer warranty.</p>
+      </div>
+      <div id="results-count" style="font-size: 0.9rem; color: #475569; font-weight: 500;"></div>
+    </div>
+
+    <!-- Search & Brand Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="Search phone (e.g. iPhone, S24, Ultra, 5G)..."
+          onkeypress="if(event.key === 'Enter') applyFilters();"
+        >
+        <select id="brand-select" class="brand-select" onchange="applyFilters()">
+          <option value="">All Brands</option>
+          <option value="Apple">Apple</option>
+          <option value="Samsung">Samsung</option>
+          <option value="OnePlus">OnePlus</option>
+          <option value="Xiaomi">Xiaomi</option>
+          <option value="Realme">Realme</option>
+          <option value="Vivo">Vivo</option>
+        </select>
+        <button class="btn-filter" onclick="applyFilters()">Search</button>
+        <button class="btn-reset" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div id="products-grid" class="product-grid">
+      <div class="loading-box">Loading phones catalog...</div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Fetch products with optional search and brand query filters
+    async function fetchProducts(search = '', brand = '') {
+      const grid = document.getElementById('products-grid');
+      const countEl = document.getElementById('results-count');
+      grid.innerHTML = '<div class="loading-box">Searching products...</div>';
+
+      try {
+        const params = new URLSearchParams();
+        if (search.trim()) params.append('search', search.trim());
+        if (brand.trim()) params.append('brand', brand.trim());
+
+        const queryStr = params.toString() ? `?${params.toString()}` : '';
+        const response = await fetch(`${API_URL}/products${queryStr}`);
+        
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        const products = await response.json();
+
+        if (countEl) {
+          countEl.textContent = `Showing ${products.length} product(s)`;
+        }
+
+        if (!products || products.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-box">
+              <h3>No phones match your search.</h3>
+              <p style="margin-top: 0.5rem;">Try searching for another model or select "All Brands".</p>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = products.map(phone => `
+          <div class="product-card">
+            <div class="product-card-img">
+              <a href="product.html?id=${phone.id}">
+                <img src="${phone.image}" alt="${phone.name}" loading="lazy">
+              </a>
+            </div>
+            <div class="product-card-body">
+              <span class="product-brand">${phone.brand}</span>
+              <h3 class="product-title">
+                <a href="product.html?id=${phone.id}" style="color: inherit; text-decoration: none;">
+                  ${phone.name}
+                </a>
+              </h3>
+              <p class="product-specs">${phone.ram || '8GB'} RAM | ${phone.storage || '128GB'} Storage</p>
+              <div class="product-price-row">
+                <span class="product-price">${formatPrice(phone.price)}</span>
+                <span class="product-stock">${phone.stock > 0 ? `In Stock (${phone.stock})` : 'Out of Stock'}</span>
+              </div>
+              <div class="product-actions">
+                <a href="product.html?id=${phone.id}" class="btn-details" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">View Details</a>
+                <button class="btn-cart" onclick='addToCart(${JSON.stringify(phone)})'>Add to Cart</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        grid.innerHTML = `
+          <div class="empty-box">
+            <p>Could not connect to backend at <code>${API_URL}</code>.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; color: #64748b;">
+              Ensure your backend is running: <code>npm run dev</code> inside <code>backend/</code>.
+            </p>
+          </div>
+        `;
+      }
+    }
+
+    // Trigger search & brand filter
+    function applyFilters() {
+      const searchVal = document.getElementById('search-input').value;
+      const brandVal = document.getElementById('brand-select').value;
+      fetchProducts(searchVal, brandVal);
+    }
+
+    // Reset filters
+    function resetFilters() {
+      document.getElementById('search-input').value = '';
+      document.getElementById('brand-select').value = '';
+      fetchProducts();
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchProducts();
+    });
+  </script>
+</body>
+</html>

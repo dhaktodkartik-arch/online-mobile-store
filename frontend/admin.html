@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - MobileHub</title>
+  <!-- Relative stylesheet link for GitHub Pages compatibility -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <a href="index.html" class="nav-brand">
+      <h1>📱 MobileHub</h1>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li>
+          <a href="cart.html" title="View Cart">
+            🛒 Cart <span id="cart-count" class="cart-badge">0</span>
+          </a>
+        </li>
+        <li id="nav-auth-slot"><a href="login.html">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Admin Main Dashboard Container -->
+  <main class="container">
+    <div id="admin-root">
+      <!-- Checked & Injected by JavaScript -->
+      <div class="loading-box">Checking administrator access...</div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 MobileHub - Student Industrial Training Project</p>
+    <div class="footer-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Connecting to backend...</span>
+    </div>
+  </footer>
+
+  <!-- Scripts (Relative paths) -->
+  <script src="js/config.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let adminProducts = [];
+    let adminOrders = [];
+    let activeTab = 'phones'; // 'phones', 'orders', 'add'
+
+    // Initialize Dashboard
+    async function initAdminDashboard() {
+      const root = document.getElementById('admin-root');
+
+      // Check if logged in and admin
+      if (!isLoggedIn() || !isAdmin()) {
+        root.innerHTML = `
+          <div class="auth-container">
+            <div class="auth-card" style="text-align: center;">
+              <div style="font-size: 3rem; margin-bottom: 0.8rem;">🔒</div>
+              <h2>Admin Access Required</h2>
+              <p style="color: #64748b; margin: 1rem 0;">
+                This dashboard is restricted to store administrators. Please log in with the administrator account.
+              </p>
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; text-align: left; font-size: 0.9rem;">
+                <strong>Default Admin Account:</strong><br>
+                Email: <code>admin@mobilehub.com</code><br>
+                Password: <code>admin123</code>
+              </div>
+              <a href="login.html" class="btn-hero" style="display: block; text-decoration: none;">Login as Admin</a>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Fetch data in parallel
+      await refreshData();
+      renderDashboard();
+    }
+
+    // Refresh products and orders data from API
+    async function refreshData() {
+      try {
+        const [prodRes, ordRes] = await Promise.all([
+          fetch(`${API_URL}/products`),
+          fetch(`${API_URL}/orders/all`)
+        ]);
+
+        if (prodRes.ok) adminProducts = await prodRes.json();
+        if (ordRes.ok) adminOrders = await ordRes.json();
+      } catch (err) {
+        console.error('Error fetching admin data:', err);
+      }
+    }
+
+    // Render the main dashboard UI
+    function renderDashboard() {
+      const root = document.getElementById('admin-root');
+      const user = getCurrentUser();
+
+      // Calculate overview metrics
+      const totalPhones = adminProducts.length;
+      const totalOrdersCount = adminOrders.length;
+      const totalRevenue = adminOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      const lowStockCount = adminProducts.filter(p => p.stock <= 5).length;
+
+      root.innerHTML = `
+        <div class="section-header">
+          <div>
+            <h2>⚙️ Store Admin Dashboard <span class="admin-badge">Admin</span></h2>
+            <p style="color: #64748b; font-size: 0.95rem;">Welcome back, ${user.name}. Manage inventory, phone prices, and customer orders.</p>
+          </div>
+          <button class="btn-reset" onclick="refreshAndRender()" style="font-weight: 600;">🔄 Refresh Data</button>
+        </div>
+
+        <!-- 4 Overview Metric Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-info">
+              <div class="stat-label">Total Inventory</div>
+              <div class="stat-value">${totalPhones}</div>
+            </div>
+            <div class="stat-icon">📱</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <div class="stat-label">Total Orders</div>
+              <div class="stat-value">${totalOrdersCount}</div>
+            </div>
+            <div class="stat-icon">📦</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <div class="stat-label">Total Revenue</div>
+              <div class="stat-value">${formatPrice(totalRevenue)}</div>
+            </div>
+            <div class="stat-icon">💰</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <div class="stat-label">Low Stock Alerts</div>
+              <div class="stat-value" style="color: ${lowStockCount > 0 ? '#dc2626' : '#16a34a'};">${lowStockCount}</div>
+            </div>
+            <div class="stat-icon">⚠️</div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="admin-tabs">
+          <button class="admin-tab-btn ${activeTab === 'phones' ? 'active' : ''}" onclick="switchTab('phones')">
+            📱 Manage Phones (${totalPhones})
+          </button>
+          <button class="admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}" onclick="switchTab('orders')">
+            📦 Customer Orders (${totalOrdersCount})
+          </button>
+          <button class="admin-tab-btn ${activeTab === 'add' ? 'active' : ''}" onclick="switchTab('add')">
+            ➕ Add New Phone
+          </button>
+        </div>
+
+        <!-- Tab Content View -->
+        <div id="tab-content-area">
+          ${getTabContentHTML()}
+        </div>
+      `;
+    }
+
+    // Switch active tab
+    function switchTab(tabName) {
+      activeTab = tabName;
+      renderDashboard();
+    }
+
+    async function refreshAndRender() {
+      await refreshData();
+      renderDashboard();
+      showToast('Dashboard data refreshed!');
+    }
+
+    // Return HTML based on active tab
+    function getTabContentHTML() {
+      if (activeTab === 'phones') {
+        return `
+          <div class="admin-table-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+              <h3 style="color: #1e3a8a;">Phones Inventory</h3>
+              <button class="btn-filter" onclick="switchTab('add')">+ Add Phone</button>
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Image</th>
+                  <th>Phone Model</th>
+                  <th>Brand</th>
+                  <th>Price (INR)</th>
+                  <th>Specs</th>
+                  <th>Stock Available</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${adminProducts.map(phone => `
+                  <tr>
+                    <td><strong>#${phone.id}</strong></td>
+                    <td>
+                      <img src="${phone.image}" alt="${phone.name}" style="width: 45px; height: 45px; object-fit: contain; border-radius: 4px; border: 1px solid #e2e8f0;">
+                    </td>
+                    <td><strong>${phone.name}</strong></td>
+                    <td><span class="product-brand">${phone.brand}</span></td>
+                    <td>${formatPrice(phone.price)}</td>
+                    <td style="color: #64748b; font-size: 0.85rem;">${phone.ram} | ${phone.storage}</td>
+                    <td>
+                      <div class="stock-control">
+                        <input type="number" id="stock-input-${phone.id}" class="stock-input" value="${phone.stock}" min="0">
+                        <button class="btn-update-stock" onclick="handleUpdateStock(${phone.id})">Save</button>
+                      </div>
+                    </td>
+                    <td style="text-align: right;">
+                      <button class="btn-delete-phone" onclick="handleDeletePhone(${phone.id}, '${phone.name.replace(/'/g, "\\'")}')">
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'orders') {
+        if (adminOrders.length === 0) {
+          return `
+            <div class="empty-box">
+              <h3>No Customer Orders Yet</h3>
+              <p style="margin-top: 0.5rem;">Customer orders placed on the store will appear here automatically.</p>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="admin-table-card">
+            <h3 style="color: #1e3a8a; margin-bottom: 1.2rem;">All Customer Orders</h3>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Date</th>
+                  <th>Delivery Address</th>
+                  <th>Items Ordered</th>
+                  <th>Total Amount</th>
+                  <th>Status</th>
+                  <th>Update</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${adminOrders.map(order => {
+                  const dateStr = order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  }) : 'Recent';
+
+                  return `
+                    <tr>
+                      <td><strong>#${order.id}</strong></td>
+                      <td>
+                        <strong>${order.customer_name || 'Customer'}</strong><br>
+                        <span style="font-size: 0.75rem; color: #64748b;">${order.customer_email || ''}</span>
+                      </td>
+                      <td style="font-size: 0.85rem; color: #64748b;">${dateStr}</td>
+                      <td style="max-width: 180px; font-size: 0.85rem;">${order.address}</td>
+                      <td>
+                        ${(order.items || []).map(i => `
+                          <div style="font-size: 0.8rem; margin-bottom: 0.2rem;">
+                            &bull; ${i.product_name} &times; ${i.quantity}
+                          </div>
+                        `).join('')}
+                      </td>
+                      <td><strong>${formatPrice(order.total)}</strong></td>
+                      <td>
+                        <select id="status-select-${order.id}" class="status-select">
+                          <option value="Placed" ${order.status === 'Placed' ? 'selected' : ''}>Placed</option>
+                          <option value="Processing" ${order.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                          <option value="Shipped" ${order.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+                          <option value="Delivered" ${order.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                          <option value="Cancelled" ${order.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button class="btn-save-status" onclick="handleUpdateStatus(${order.id})">Save</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'add') {
+        return `
+          <div class="add-phone-card">
+            <h3 style="color: #1e3a8a; margin-bottom: 0.5rem;">Add New Smartphone</h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">
+              Fill in the details below to add a new phone directly into MySQL database inventory.
+            </p>
+
+            <form id="add-phone-form" onsubmit="handleAddPhone(event)">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Phone Model Name *</label>
+                  <input type="text" id="phone-name" class="form-input" placeholder="e.g. Google Pixel 9 Pro" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Brand *</label>
+                  <select id="phone-brand" class="form-input" required>
+                    <option value="">Select Brand</option>
+                    <option value="Apple">Apple</option>
+                    <option value="Samsung">Samsung</option>
+                    <option value="OnePlus">OnePlus</option>
+                    <option value="Xiaomi">Xiaomi</option>
+                    <option value="Realme">Realme</option>
+                    <option value="Vivo">Vivo</option>
+                    <option value="Google">Google</option>
+                    <option value="Motorola">Motorola</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Price in INR (₹) *</label>
+                  <input type="number" id="phone-price" class="form-input" placeholder="e.g. 79999" step="0.01" min="1" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Initial Stock Units *</label>
+                  <input type="number" id="phone-stock" class="form-input" value="15" min="0" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">RAM (GB)</label>
+                  <input type="text" id="phone-ram" class="form-input" placeholder="e.g. 12GB" value="8GB">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Internal Storage</label>
+                  <input type="text" id="phone-storage" class="form-input" placeholder="e.g. 256GB" value="128GB">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Image URL (Optional)</label>
+                <input type="url" id="phone-image" class="form-input" placeholder="https://... (leave empty for placeholder)">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Product Description</label>
+                <textarea id="phone-desc" class="form-textarea" placeholder="Key specs, camera details, processor, battery..."></textarea>
+              </div>
+
+              <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="submit" id="btn-save-phone" class="btn-auth" style="margin-top:0;">Save Phone to Database</button>
+                <button type="button" class="btn-reset" onclick="switchTab('phones')">Cancel</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+    }
+
+    // Handle Stock Update Action
+    async function handleUpdateStock(productId) {
+      const stockInput = document.getElementById(`stock-input-${productId}`);
+      const newStock = parseInt(stockInput.value, 10);
+
+      if (isNaN(newStock) || newStock < 0) {
+        alert('Please enter a valid stock quantity (0 or greater).');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/products/${productId}/stock`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock: newStock })
+        });
+
+        if (!response.ok) throw new Error('Failed to update stock');
+
+        showToast(`Stock updated to ${newStock} units!`);
+        await refreshData();
+        renderDashboard();
+      } catch (err) {
+        alert('Error updating stock: ' + err.message);
+      }
+    }
+
+    // Handle Order Status Update Action
+    async function handleUpdateStatus(orderId) {
+      const select = document.getElementById(`status-select-${orderId}`);
+      const newStatus = select.value;
+
+      try {
+        const response = await fetch(`${API_URL}/orders/${orderId}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!response.ok) throw new Error('Failed to update status');
+
+        showToast(`Order #${orderId} marked as "${newStatus}"!`);
+        await refreshData();
+        renderDashboard();
+      } catch (err) {
+        alert('Error updating order status: ' + err.message);
+      }
+    }
+
+    // Handle Delete Phone Action
+    async function handleDeletePhone(productId, phoneName) {
+      if (!confirm(`Are you sure you want to delete "${phoneName}"?`)) return;
+
+      try {
+        const response = await fetch(`${API_URL}/products/${productId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete product');
+
+        showToast(`Deleted "${phoneName}"`);
+        await refreshData();
+        renderDashboard();
+      } catch (err) {
+        alert('Error deleting phone: ' + err.message);
+      }
+    }
+
+    // Handle Add New Phone Form Submit
+    async function handleAddPhone(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('phone-name').value.trim();
+      const brand = document.getElementById('phone-brand').value;
+      const price = parseFloat(document.getElementById('phone-price').value);
+      const stock = parseInt(document.getElementById('phone-stock').value, 10);
+      const ram = document.getElementById('phone-ram').value.trim();
+      const storage = document.getElementById('phone-storage').value.trim();
+      const image = document.getElementById('phone-image').value.trim();
+      const description = document.getElementById('phone-desc').value.trim();
+
+      const btn = document.getElementById('btn-save-phone');
+      btn.disabled = true;
+      btn.textContent = 'Saving to MySQL...';
+
+      try {
+        const response = await fetch(`${API_URL}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, brand, price, stock, ram, storage, image, description })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to add phone');
+
+        showToast(`Phone "${name}" added to database!`);
+        await refreshData();
+        activeTab = 'phones'; // Switch back to phones list
+        renderDashboard();
+      } catch (err) {
+        alert('Error adding phone: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Save Phone to Database';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initAdminDashboard);
+  </script>
+</body>
+</html>
